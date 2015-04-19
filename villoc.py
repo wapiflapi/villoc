@@ -6,11 +6,13 @@
 ## Login   <wapiflapi@epitech.net>
 ##
 ## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Sun Apr 19 15:36:29 2015 Wannes Rombouts
+## Last update Sun Apr 19 22:50:23 2015 Wannes Rombouts
 ##
 
 import re
+import html
 import random
+import codecs
 
 def roundup(s):
 
@@ -50,7 +52,7 @@ class Printable():
         out.write('<div class="%s" style="width: %dem; %s;">' % (
                 " ".join(self.classes), 10 * width, color))
         if self.details:
-            out.write('<strong>%#x</strong><br />+ %#x' % (
+            out.write('<strong>%#x</strong><br />+ %#x ' % (
                     self.start(), self.end() - self.start()))
             out.write(self.more_html())
 
@@ -102,12 +104,12 @@ class Block(Printable):
         color = "background-color: rgb(%d, %d, %d);" % self.color
 
         if self.error:
-            color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.75em, rgba(255,255,255,0.5) 1.75em, rgba(255,255,255,0.5) 50px);"
+            color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.40em, rgba(255,255,255,0.8) 1.40em, rgba(255,255,255,0.8) 50px);"
 
         super().gen_html(out, width, color)
 
     def more_html(self):
-        return " (%#x)" % self.usize
+        return "(%#x)" % self.usize
 
 
 def malloc(state, ret, size):
@@ -140,6 +142,9 @@ def calloc(state, ret, nmemb, size):
 
 
 def free(state, ret, ptr):
+
+    if ptr is 0:
+        return
 
     s, match = match_ptr(state, ptr)
 
@@ -227,7 +232,7 @@ def build_timeline(events, overhead=16):
         timeline.append(state)
 
         op(state, ret, *args)
-        state.info.append("%s(%s) = %#x" % (func, ", ".join("%#x" % a for a in args), ret))
+        state.info.append("%s(%s) = %s" % (func, ", ".join("%#x" % a for a in args), "<error>" if ret is None else "%#x" % ret))
 
     return timeline
 
@@ -303,10 +308,10 @@ def print_state(out, boundaries, state):
 
 
     for msg in state.info:
-        out.write('<p>%s</p>' % (msg,))
+        out.write('<p>%s</p>' % html.escape(str(msg)))
 
     for msg in state.errors:
-        out.write('<p>%s</p>' % (msg,))
+        out.write('<p>%s</p>' % html.escape(str(msg)))
 
     out.write('</div>\n')
 
@@ -434,8 +439,8 @@ if __name__ == '__main__':
     if args.show_seed:
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
-
-    timeline = build_timeline(parse_ltrace(args.ltrace), overhead=8)
+    nice_input = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
+    timeline = build_timeline(parse_ltrace(nice_input), overhead=8)
 
     # for state in timeline:
     #     print(", ".join("%#x: %#x" % (k, v) for k, (v, c) in state.items()))
