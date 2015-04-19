@@ -6,7 +6,7 @@
 ## Login   <wapiflapi@epitech.net>
 ##
 ## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Sun Apr 19 22:50:23 2015 Wannes Rombouts
+## Last update Sun Apr 19 23:32:30 2015 Wannes Rombouts
 ##
 
 import re
@@ -104,7 +104,7 @@ class Block(Printable):
         color = "background-color: rgb(%d, %d, %d);" % self.color
 
         if self.error:
-            color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.40em, rgba(255,255,255,0.8) 1.40em, rgba(255,255,255,0.8) 50px);"
+            color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.40em, #A85860 1.40em, #A85860 2.80em);"
 
         super().gen_html(out, width, color)
 
@@ -231,8 +231,13 @@ def build_timeline(events, overhead=16):
         state = State(timeline[-1])
         timeline.append(state)
 
+        if ret is None:
+            state.errors.append("%s(%s) = <error>" % (func, ", ".join("%#x" % a for a in args)))
+        else:
+            state.info.append("%s(%s) = %#x" % (func, ", ".join("%#x" % a for a in args), ret))
+
         op(state, ret, *args)
-        state.info.append("%s(%s) = %s" % (func, ", ".join("%#x" % a for a in args), "<error>" if ret is None else "%#x" % ret))
+
 
     return timeline
 
