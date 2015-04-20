@@ -6,7 +6,7 @@
 ## Login   <wapiflapi@epitech.net>
 ##
 ## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Mon Apr 20 14:08:44 2015 Wannes Rombouts
+## Last update Mon Apr 20 20:23:42 2015 Wannes Rombouts
 ##
 
 import re
@@ -312,6 +312,7 @@ def print_state(out, boundaries, state):
         out.write('</div>\n')
 
     out.write('<div class="log">')
+
     for msg in state.info:
         out.write('<p>%s</p>' % html.escape(str(msg)))
 
@@ -319,6 +320,7 @@ def print_state(out, boundaries, state):
         out.write('<p>%s</p>' % html.escape(str(msg)))
 
     out.write('</div>\n')
+
     out.write('</div>\n')
 
 def gen_html(timeline, out):
@@ -336,6 +338,7 @@ def gen_html(timeline, out):
     out.write('<style>')
 
     out.write('''body {
+font-size: 12px;
 background-color: #EBEBEB;
 font-family: "Lucida Console", Monaco, monospace;
 width: %dem;
@@ -449,7 +452,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("ltrace", type=argparse.FileType("r"), default=sys.stdin)
+    parser.add_argument("ltrace", type=argparse.FileType("rb"))
     parser.add_argument("out", type=argparse.FileType("w"))
     parser.add_argument("-o", "--overhead", type=int, default=16)
     parser.add_argument("-s", "--seed", type=int, default=226) # 38, 917, 190, 226
@@ -461,10 +464,6 @@ if __name__ == '__main__':
     if args.show_seed:
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
-    nice_input = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
-    timeline = build_timeline(parse_ltrace(nice_input), overhead=8)
-
-    # for state in timeline:
-    #     print(", ".join("%#x: %#x" % (k, v) for k, (v, c) in state.items()))
+    timeline = build_timeline(parse_ltrace(args.ltrace), overhead=8)
 
     gen_html(timeline, args.out)
