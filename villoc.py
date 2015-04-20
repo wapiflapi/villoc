@@ -6,7 +6,7 @@
 ## Login   <wapiflapi@epitech.net>
 ##
 ## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Mon Apr 20 14:00:00 2015 Wannes Rombouts
+## Last update Mon Apr 20 14:08:44 2015 Wannes Rombouts
 ##
 
 import re
@@ -415,11 +415,15 @@ color: white;
 
     out.write('<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>')
     out.write('''<script>
+var scrollTimeout = null;
 $(window).scroll(function(){
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(function(){
     $('.log').stop();
     $('.log').animate({
         'margin-left': $(this).scrollLeft()
-    });
+    }, 100);
+    }, 200);
 });
 </script>
 ''')
