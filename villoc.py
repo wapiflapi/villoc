@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-## villoc.py for  in /home/wapiflapi
-##
-## Made by Wannes Rombouts
-## Login   <wapiflapi@epitech.net>
-##
-## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Mon Apr 20 20:23:42 2015 Wannes Rombouts
-##
+# @wapiflapi
 
 import re
 import html
