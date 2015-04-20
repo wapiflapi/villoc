@@ -6,7 +6,7 @@
 ## Login   <wapiflapi@epitech.net>
 ##
 ## Started on  Sat Apr 18 17:04:24 2015 Wannes Rombouts
-## Last update Sun Apr 19 23:32:30 2015 Wannes Rombouts
+## Last update Mon Apr 20 14:00:00 2015 Wannes Rombouts
 ##
 
 import re
@@ -311,13 +311,14 @@ def print_state(out, boundaries, state):
 
         out.write('</div>\n')
 
-
+    out.write('<div class="log">')
     for msg in state.info:
         out.write('<p>%s</p>' % html.escape(str(msg)))
 
     for msg in state.errors:
         out.write('<p>%s</p>' % html.escape(str(msg)))
 
+    out.write('</div>\n')
     out.write('</div>\n')
 
 def gen_html(timeline, out):
@@ -398,6 +399,8 @@ padding: 0.5em;
 
 }''')
 
+    out.write('''.log {
+}''')
 
     out.write('''.error {
 color: white;
@@ -408,8 +411,18 @@ background-color: #8b1820;
 color: white;
 }''')
 
-
     out.write('</style>\n')
+
+    out.write('<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>')
+    out.write('''<script>
+$(window).scroll(function(){
+    $('.log').stop();
+    $('.log').animate({
+        'margin-left': $(this).scrollLeft()
+    });
+});
+</script>
+''')
 
     out.write('<body>\n')
 
