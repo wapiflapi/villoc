@@ -6,6 +6,8 @@ import html
 import random
 import codecs
 
+import time
+
 def roundup(s):
 
     if s < 0x20:
@@ -57,6 +59,9 @@ class Printable():
     def more_html(self):
         return ""
 
+    def __repr__(self):
+        return "%s(start=%#x, end=%#x)" % (self.__class__.__name__, self.start(), self.end())
+
 class Empty(Printable):
 
     classes = Printable.classes + ["empty"]
@@ -79,12 +84,13 @@ class Block(Printable):
 
     classes = Printable.classes + ["normal"]
 
-    def __init__(self, addr, size, **kwargs):
+    def __init__(self, addr, size, error=False, marker=False, **kwargs):
         self.color = kwargs.get('color', random_color())
         self.uaddr = addr
         self.usize = size
         self.details = True
-        self.error = False
+        self.error = error
+        self.marker = marker
 
     def start(self):
         return self.uaddr - 8
@@ -93,8 +99,7 @@ class Block(Printable):
         return self.uaddr - 8 + roundup(self.usize + 8)
 
     def gen_html(self, out, width):
-        color = "background-color: rgb(%d, %d, %d);" % self.color
-
+        color = ("background-color: rgb(%d, %d, %d);" % self.color) if self.color else ""
         if self.error:
             color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.40em, #A85860 1.40em, #A85860 2.80em);"
 
@@ -103,13 +108,9 @@ class Block(Printable):
     def more_html(self):
         return "(%#x)" % self.usize
 
-
-def malloc(state, ret, size):
-
-    if not ret:
-        state.errors.append("Failed to allocate %#x bytes." % size)
-    else:
-        state.append(Block(ret, size))
+    def __repr__(self):
+        return "%s(start=%#x, end=%#x, marker=%s)" % (self.__class__.__name__, self.start(),
+                                                      self.end(), self.marker)
 
 
 def match_ptr(state, ptr):
@@ -124,9 +125,19 @@ def match_ptr(state, ptr):
             s, smallest_match = i, block
 
     if smallest_match is None:
-        state.errors.append("Can't find block at %#x." % (ptr-8))
+        state.errors.append("Couldn't find block at %#x, adding marker." % (ptr-8))
+        # We'll add a small marker block here to show the error.
+        state.append(Block(ptr, 0x0, error=True, marker=True))
 
     return s, smallest_match
+
+
+def malloc(state, ret, size):
+
+    if not ret:
+        state.errors.append("Failed to allocate %#x bytes." % size)
+    else:
+        state.append(Block(ret, size))
 
 
 def calloc(state, ret, nmemb, size):
@@ -143,8 +154,7 @@ def free(state, ret, ptr):
     if match is None:
         return
     elif ret is None:
-        state[s] = Block(match.uaddr, match.usize, color=match.color)
-        state[s].error = True
+        state[s] = Block(match.uaddr, match.usize, error=True, color=match.color)
     else:
         del state[s]
 
@@ -211,6 +221,7 @@ def parse_ltrace(ltrace):
 
 def build_timeline(events, overhead=16):
 
+    boundaries = set()
     timeline = [State()]
 
     for func, args, ret in events:
@@ -220,8 +231,7 @@ def build_timeline(events, overhead=16):
         except KeyError:
             continue
 
-        state = State(timeline[-1])
-        timeline.append(state)
+        state = State(b for b in timeline[-1] if not b.marker)
 
         if ret is None:
             state.errors.append("%s(%s) = <error>" % (func, ", ".join("%#x" % a for a in args)))
@@ -229,9 +239,11 @@ def build_timeline(events, overhead=16):
             state.info.append("%s(%s) = %#x" % (func, ", ".join("%#x" % a for a in args), ret))
 
         op(state, ret, *args)
+        boundaries.update(state.boundaries())
+        timeline.append(state)
 
+    return timeline, boundaries
 
-    return timeline
 
 def random_color(r=200, g=200, b=125):
 
@@ -297,7 +309,11 @@ def print_state(out, boundaries, state):
 
 
         if current:
-            raise RuntimeError("block was started but never finished")
+            raise RuntimeError("Block was started but never finished.")
+
+        if not done:
+            raise RuntimeError("Some block(s) don't match boundaries.")
+
 
         todo = [x for x in todo if x not in done]
 
@@ -315,15 +331,10 @@ def print_state(out, boundaries, state):
 
     out.write('</div>\n')
 
-def gen_html(timeline, out):
+def gen_html(timeline, boundaries, out):
 
     if timeline and not timeline[0]:
         timeline.pop(0)
-
-    boundaries = set()
-    for state in timeline:
-        sb = state.boundaries()
-        boundaries.update(sb)
 
     boundaries = list(sorted(boundaries))
 
@@ -378,7 +389,6 @@ color: gray;
   clear:both;
 }''')
 
-
     out.write('''.state {
 margin: 0.5em; padding: 0;
 
@@ -427,10 +437,8 @@ $(window).scroll(function(){
 
     out.write('<div class="timeline">\n')
 
-
     for state in timeline:
         print_state(out, boundaries, state)
-
 
     out.write('</div>\n')
 
@@ -456,6 +464,7 @@ if __name__ == '__main__':
     if args.show_seed:
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
-    timeline = build_timeline(parse_ltrace(args.ltrace), overhead=8)
+    nice_input = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
+    timeline, boundaries = build_timeline(parse_ltrace(nice_input), overhead=8)
 
-    gen_html(timeline, args.out)
+    gen_html(timeline, boundaries, args.out)
