@@ -7,17 +7,6 @@ import random
 import codecs
 
 
-def roundup(s):
-
-    if s < 0x20:
-        s = 0x20
-
-    if (s & 0xf) == 0:
-        return s
-
-    return s - (s & 0xf) + 0x10
-
-
 class State(list):
 
     def __init__(self, *args, **kwargs):
@@ -87,6 +76,9 @@ class Block(Printable):
 
     header = 8
     footer = 0
+    round = 0x10
+    minsz = 0x20
+
     classes = Printable.classes + ["normal"]
 
     def __init__(self, addr, size, error=False, tmp=False, **kwargs):
@@ -101,7 +93,10 @@ class Block(Printable):
         return self.uaddr - self.header
 
     def end(self):
-        return self.uaddr - self.header + roundup(self.usize + self.header + self.footer)
+        size = max(self.minsz, self.usize + self.header + self.footer)
+        rsize = size + (self.round - 1)
+        rsize = rsize - (rsize % self.round)
+        return self.uaddr - self.header + rsize
 
     def gen_html(self, out, width):
 
@@ -301,7 +296,10 @@ def print_state(out, boundaries, state):
 
         for i, b in enumerate(boundaries):
 
-            if current and current.end() != b:
+            # If this block has size 0; make it continue until the
+            # next boundary anyway. The size will be displayed as
+            # 0 or unknown anyway and it shouldn't be too confusing.
+            if current and current.end() != b and current.start() != current.end():
                 continue
 
             if current:  # stops here.
@@ -336,6 +334,7 @@ def print_state(out, boundaries, state):
                     known_stops.add(i)
 
                 last = i
+
 
         if current:
             raise RuntimeError("Block was started but never finished.")
@@ -482,8 +481,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("ltrace", type=argparse.FileType("rb"))
     parser.add_argument("out", type=argparse.FileType("w"))
-    parser.add_argument("--header", type=int, default=8)
-    parser.add_argument("--footer", type=int, default=0)
+    parser.add_argument("--header", type=int, default=8,
+                        help="size of malloc metadata before user data")
+    parser.add_argument("--footer", type=int, default=0,
+                        help="size of malloc metadata after user data")
+    parser.add_argument("--round", type=int, default=0x10,
+                        help="size of malloc chunks are a multiple of this value")
+    parser.add_argument("--minsz", type=int, default=0x20,
+                        help="size of a malloc chunk is at least this value")
+    parser.add_argument("--raw", action="store_true",
+                        help="disables header, footer, round and minsz")
 
     # Some values that work well: 38, 917, 190, 226
     parser.add_argument("-s", "--seed", type=int, default=226)
@@ -496,8 +503,12 @@ if __name__ == '__main__':
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
     # Set malloc options
-    Block.header = args.header
-    Block.footer = args.footer
+
+    if args.raw:
+        Block.header, Block.footer, Block.round, Block.minsz = 0, 0, 1, 0
+    Block.header, Block.footer, Block.round, Block.minsz = (
+        args.header, args.footer, args.round, args.minsz)
+
 
     noerrors = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
     timeline, boundaries = build_timeline(parse_ltrace(noerrors))
