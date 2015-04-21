@@ -46,8 +46,7 @@ class Printable():
         out.write('<div class="%s" style="width: %dem; %s;">' % (
                 " ".join(self.classes), 10 * width, color))
         if self.details:
-            out.write('<strong>%#x</strong><br />+ %#x ' % (
-                    self.start(), self.end() - self.start()))
+            out.write('<strong>%#x</strong><br />' % self.start())
             out.write(self.more_html())
 
         else:
@@ -80,17 +79,20 @@ class Empty(Printable):
     def set_end(self, end):
         self._end = end
 
+    def more_html(self):
+        return "+ %#x" % (self.end() - self.start())
+
 class Block(Printable):
 
     classes = Printable.classes + ["normal"]
 
-    def __init__(self, addr, size, error=False, marker=False, **kwargs):
+    def __init__(self, addr, size, error=False, tmp=False, **kwargs):
         self.color = kwargs.get('color', random_color())
         self.uaddr = addr
         self.usize = size
         self.details = True
         self.error = error
-        self.marker = marker
+        self.tmp = tmp
 
     def start(self):
         return self.uaddr - 8
@@ -106,11 +108,20 @@ class Block(Printable):
         super().gen_html(out, width, color)
 
     def more_html(self):
-        return "(%#x)" % self.usize
+        return "+ %#x (%#x)" % (self.end() - self.start(), self.usize)
 
     def __repr__(self):
-        return "%s(start=%#x, end=%#x, marker=%s)" % (self.__class__.__name__, self.start(),
-                                                      self.end(), self.marker)
+        return "%s(start=%#x, end=%#x, tmp=%s)" % (self.__class__.__name__, self.start(),
+                                                      self.end(), self.tmp)
+
+
+class Marker(Block):
+
+    def __init__(self, addr, error=False, **kwargs):
+        super().__init__(addr, 0x0, tmp=True, error=error, *kwargs)
+
+    def more_html(self):
+        return "unknown"
 
 
 def match_ptr(state, ptr):
@@ -125,9 +136,9 @@ def match_ptr(state, ptr):
             s, smallest_match = i, block
 
     if smallest_match is None:
-        state.errors.append("Couldn't find block at %#x, adding marker." % (ptr-8))
-        # We'll add a small marker block here to show the error.
-        state.append(Block(ptr, 0x0, error=True, marker=True))
+        state.errors.append("Couldn't find block at %#x, added marker." % (ptr-8))
+        # We'll add a small tmp block here to show the error.
+        state.append(Marker(ptr, error=True))
 
     return s, smallest_match
 
@@ -231,7 +242,7 @@ def build_timeline(events, overhead=16):
         except KeyError:
             continue
 
-        state = State(b for b in timeline[-1] if not b.marker)
+        state = State(b for b in timeline[-1] if not b.tmp)
 
         if ret is None:
             state.errors.append("%s(%s) = <error>" % (func, ", ".join("%#x" % a for a in args)))
