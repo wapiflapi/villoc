@@ -6,7 +6,6 @@ import html
 import random
 import codecs
 
-import time
 
 def roundup(s):
 
@@ -34,6 +33,7 @@ class State(list):
             bounds.add(hi)
         return bounds
 
+
 class Printable():
 
     unit_width = 10
@@ -43,15 +43,13 @@ class Printable():
         return (self.start(), self.end())
 
     def gen_html(self, out, width, color=""):
-        out.write('<div class="%s" style="width: %dem; %s;">' % (
-                " ".join(self.classes), 10 * width, color))
+        out.write('<div class="%s" style="width: %dem; %s;">' %
+                  (" ".join(self.classes), 10 * width, color))
         if self.details:
             out.write('<strong>%#x</strong><br />' % self.start())
             out.write(self.more_html())
-
         else:
             out.write('&nbsp;')
-
 
         out.write('</div>\n')
 
@@ -59,7 +57,9 @@ class Printable():
         return ""
 
     def __repr__(self):
-        return "%s(start=%#x, end=%#x)" % (self.__class__.__name__, self.start(), self.end())
+        return "%s(start=%#x, end=%#x)" % (self.__class__.__name__,
+                                           self.start(), self.end())
+
 
 class Empty(Printable):
 
@@ -82,6 +82,7 @@ class Empty(Printable):
     def more_html(self):
         return "+ %#x" % (self.end() - self.start())
 
+
 class Block(Printable):
 
     classes = Printable.classes + ["normal"]
@@ -101,9 +102,16 @@ class Block(Printable):
         return self.uaddr - 8 + roundup(self.usize + 8)
 
     def gen_html(self, out, width):
-        color = ("background-color: rgb(%d, %d, %d);" % self.color) if self.color else ""
+
+        if self.color:
+            color = ("background-color: rgb(%d, %d, %d);" % self.color)
+        else:
+            color = ""
+
         if self.error:
-            color += "background-image: repeating-linear-gradient(120deg, transparent, transparent 1.40em, #A85860 1.40em, #A85860 2.80em);"
+            color += ("background-image: repeating-linear-gradient("
+                      "120deg, transparent, transparent 1.40em, "
+                      "#A85860 1.40em, #A85860 2.80em);")
 
         super().gen_html(out, width, color)
 
@@ -111,8 +119,8 @@ class Block(Printable):
         return "+ %#x (%#x)" % (self.end() - self.start(), self.usize)
 
     def __repr__(self):
-        return "%s(start=%#x, end=%#x, tmp=%s)" % (self.__class__.__name__, self.start(),
-                                                      self.end(), self.tmp)
+        return "%s(start=%#x, end=%#x, tmp=%s)" % (
+            self.__class__.__name__, self.start(), self.end(), self.tmp)
 
 
 class Marker(Block):
@@ -132,11 +140,14 @@ def match_ptr(state, ptr):
     s, smallest_match = None, None
 
     for i, block in enumerate(state):
-        if block.uaddr == ptr and (smallest_match is None or smallest_match.usize >= block.usize):
+        if block.uaddr != ptr:
+            continue
+        if smallest_match is None or smallest_match.usize >= block.usize:
             s, smallest_match = i, block
 
     if smallest_match is None:
-        state.errors.append("Couldn't find block at %#x, added marker." % (ptr-8))
+        state.errors.append("Couldn't find block at %#x, added marker." %
+                            (ptr - 8))
         # We'll add a small tmp block here to show the error.
         state.append(Marker(ptr, error=True))
 
@@ -165,7 +176,8 @@ def free(state, ret, ptr):
     if match is None:
         return
     elif ret is None:
-        state[s] = Block(match.uaddr, match.usize, error=True, color=match.color)
+        state[s] = Block(match.uaddr, match.usize,
+                         error=True, color=match.color)
     else:
         del state[s]
 
@@ -195,6 +207,7 @@ operations = {
     'realloc': realloc,
 }
 
+
 def sanitize(x):
     if x is None:
         return None
@@ -205,26 +218,27 @@ def sanitize(x):
 
 def parse_ltrace(ltrace):
 
+    match_call = r"^([a-z_]+)\((.*)\) += (.*)"
+    match_err = r"^([a-z_]+)\((.*) <no return \.\.\.>"
+
     for line in ltrace:
 
         if not any(line.startswith(f) for f in operations):
             continue
 
         try:
-            func, args, ret = re.findall(r"^([a-z_]+)\((.*)\) += (.*)", line)[0]
+            func, args, ret = re.findall(match_call, line)[0]
         except:
 
             try:
                 # maybe this stoped the program
-                func, args = re.findall(r"^([a-z_]+)\((.*) <no return \.\.\.>", line)[0]
+                func, args = re.findall(match_err, line)[0]
                 ret = None
             except:
                 print("ignoring line: %s" % line, file=sys.stderr)
                 continue
 
-        args = args.split(", ")
-
-        args = list(map(sanitize, args))
+        args = list(map(sanitize, args.split(", ")))
         ret = sanitize(ret)
 
         yield func, args, ret
@@ -244,10 +258,12 @@ def build_timeline(events, overhead=16):
 
         state = State(b for b in timeline[-1] if not b.tmp)
 
+        call = "%s(%s)" % (func, ", ".join("%#x" % a for a in args))
+
         if ret is None:
-            state.errors.append("%s(%s) = <error>" % (func, ", ".join("%#x" % a for a in args)))
+            state.errors.append("%s = <error>" % call)
         else:
-            state.info.append("%s(%s) = %#x" % (func, ", ".join("%#x" % a for a in args), ret))
+            state.info.append("%s = %#x" % (call, ret))
 
         op(state, ret, *args)
         boundaries.update(state.boundaries())
@@ -309,7 +325,8 @@ def print_state(out, boundaries, state):
                         break
 
                 if s != last:
-                    Empty(boundaries[last], boundaries[s], display=False).gen_html(out, s - last)
+                    Empty(boundaries[last], boundaries[s],
+                          display=False).gen_html(out, s - last)
                     known_stops.add(s)
 
                 if s != i:
@@ -318,17 +335,15 @@ def print_state(out, boundaries, state):
 
                 last = i
 
-
         if current:
             raise RuntimeError("Block was started but never finished.")
 
         if not done:
             raise RuntimeError("Some block(s) don't match boundaries.")
 
+        out.write('</div>\n')
 
         todo = [x for x in todo if x not in done]
-
-        out.write('</div>\n')
 
     out.write('<div class="log">')
 
@@ -341,6 +356,7 @@ def print_state(out, boundaries, state):
     out.write('</div>\n')
 
     out.write('</div>\n')
+
 
 def gen_html(timeline, boundaries, out):
 
@@ -357,7 +373,7 @@ background-color: #EBEBEB;
 font-family: "Lucida Console", Monaco, monospace;
 width: %dem;
 }
-''' % ((len(boundaries) - 1) * (Printable.unit_width + 1) ))
+''' % ((len(boundaries) - 1) * (Printable.unit_width + 1)))
 
     out.write('''p {
 margin: 0.8em 0 0 0.1em;
@@ -456,7 +472,6 @@ $(window).scroll(function(){
     out.write('</body>\n')
 
 
-
 if __name__ == '__main__':
 
     import sys
@@ -466,7 +481,9 @@ if __name__ == '__main__':
     parser.add_argument("ltrace", type=argparse.FileType("rb"))
     parser.add_argument("out", type=argparse.FileType("w"))
     parser.add_argument("-o", "--overhead", type=int, default=16)
-    parser.add_argument("-s", "--seed", type=int, default=226) # 38, 917, 190, 226
+
+    # Some values that work well: 38, 917, 190, 226
+    parser.add_argument("-s", "--seed", type=int, default=226)
     parser.add_argument("-S", "--show-seed", action="store_true")
     args = parser.parse_args()
 
@@ -475,7 +492,7 @@ if __name__ == '__main__':
     if args.show_seed:
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
-    nice_input = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
-    timeline, boundaries = build_timeline(parse_ltrace(nice_input), overhead=8)
+    noerrors = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
+    timeline, boundaries = build_timeline(parse_ltrace(noerrors), overhead=8)
 
     gen_html(timeline, boundaries, args.out)
