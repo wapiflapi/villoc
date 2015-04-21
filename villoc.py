@@ -85,6 +85,8 @@ class Empty(Printable):
 
 class Block(Printable):
 
+    header = 8
+    footer = 0
     classes = Printable.classes + ["normal"]
 
     def __init__(self, addr, size, error=False, tmp=False, **kwargs):
@@ -96,10 +98,10 @@ class Block(Printable):
         self.tmp = tmp
 
     def start(self):
-        return self.uaddr - 8
+        return self.uaddr - self.header
 
     def end(self):
-        return self.uaddr - 8 + roundup(self.usize + 8)
+        return self.uaddr - self.header + roundup(self.usize + self.header + self.footer)
 
     def gen_html(self, out, width):
 
@@ -147,7 +149,7 @@ def match_ptr(state, ptr):
 
     if smallest_match is None:
         state.errors.append("Couldn't find block at %#x, added marker." %
-                            (ptr - 8))
+                            (ptr - Block.header))
         # We'll add a small tmp block here to show the error.
         state.append(Marker(ptr, error=True))
 
@@ -244,7 +246,7 @@ def parse_ltrace(ltrace):
         yield func, args, ret
 
 
-def build_timeline(events, overhead=16):
+def build_timeline(events):
 
     boundaries = set()
     timeline = [State()]
@@ -480,7 +482,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("ltrace", type=argparse.FileType("rb"))
     parser.add_argument("out", type=argparse.FileType("w"))
-    parser.add_argument("-o", "--overhead", type=int, default=16)
+    parser.add_argument("--header", type=int, default=8)
+    parser.add_argument("--footer", type=int, default=0)
 
     # Some values that work well: 38, 917, 190, 226
     parser.add_argument("-s", "--seed", type=int, default=226)
@@ -492,7 +495,11 @@ if __name__ == '__main__':
     if args.show_seed:
         args.out.write('<h2>seed: %d</h2>' % args.seed)
 
+    # Set malloc options
+    Block.header = args.header
+    Block.footer = args.footer
+
     noerrors = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
-    timeline, boundaries = build_timeline(parse_ltrace(noerrors), overhead=8)
+    timeline, boundaries = build_timeline(parse_ltrace(noerrors))
 
     gen_html(timeline, boundaries, args.out)
