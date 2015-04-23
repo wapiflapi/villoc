@@ -34,11 +34,14 @@ class Printable():
     def gen_html(self, out, width, color=""):
         out.write('<div class="%s" style="width: %dem; %s;">' %
                   (" ".join(self.classes), 10 * width, color))
+
+        out.write('<p style="margin: 0; padding: 0">')
         if self.details:
             out.write('<strong>%#x</strong><br />' % self.start())
             out.write(self.more_html())
         else:
             out.write('&nbsp;')
+        out.write('</p>')
 
         out.write('</div>\n')
 
@@ -143,9 +146,8 @@ def match_ptr(state, ptr):
             s, smallest_match = i, block
 
     if smallest_match is None:
-        state.errors.append("Couldn't find block at %#x, added marker." %
+        state.errors.append("Couldn't find block at %#x: Marked as unknown." %
                             (ptr - Block.header))
-        # We'll add a small tmp block here to show the error.
         state.append(Marker(ptr, error=True))
 
     return s, smallest_match

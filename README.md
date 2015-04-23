@@ -5,6 +5,10 @@ Villoc is a heap visualisation tool, it's a python script that renders a static
 html file. An example can be seen here: http://wapiflapi.github.io/villoc/, this
 is villoc running on an exploit of PlaidCTF 2015's challenge PlaidDB.
 
+An article about that challenge and my use of Villoc is available [here][1].
+
+[1]: http://wapiflapi.github.io/2015/04/22/single-null-byte-heap-overflow/
+
 ## How to
 
 The easiest way to use villoc is probably to run the following command and open
