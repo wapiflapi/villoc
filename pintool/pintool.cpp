@@ -7,10 +7,17 @@
 /* ===================================================================== */
 /* Names of malloc and free */
 /* ===================================================================== */
+#if defined(TARGET_MAC)
+#define CALLOC "_calloc"
+#define MALLOC "_malloc"
+#define FREE "_free"
+#define REALLOC "_realloc"
+#else
 #define CALLOC "calloc"
 #define MALLOC "malloc"
 #define FREE "free"
 #define REALLOC "realloc"
+#endif
 
 using namespace std;
 
