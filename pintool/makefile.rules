@@ -17,7 +17,7 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := pilloc
+TEST_TOOL_ROOTS := pintool
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
