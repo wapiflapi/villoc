@@ -9,7 +9,7 @@ make PIN_ROOT=~/code/pin-2.14-71313-gcc.4.4.7-linux
 Where PIN_ROOT is the path to your pin directory.
 Then to run:
 ```shell
-~/code/pin-2.14-71313-gcc.4.4.7-linux/pin.sh-t obj-intel64/pintool.so -- $cmd
+~/code/pin-2.14-71313-gcc.4.4.7-linux/pin.sh -t obj-intel64/pintool.so -- $cmd
 ```
 Add `-injection child` if the operating system configuration prevents Pin from using the
 default (parent) injection mode.
