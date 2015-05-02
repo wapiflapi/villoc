@@ -1,5 +1,5 @@
 # Villoc Pintool
-This a pintool which aims to create an ltrace compatible output for heap management functions
+This is a pintool which aims to create an ltrace compatible output for heap management functions
 which can be visualised by villoc.
 # Build and Run
 To Build run:
