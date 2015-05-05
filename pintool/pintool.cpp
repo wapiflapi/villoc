@@ -18,6 +18,7 @@
 #define FREE "free"
 #define REALLOC "realloc"
 #endif
+#define MAIN "main"
 
 using namespace std;
 
@@ -27,6 +28,7 @@ using namespace std;
 
 class Args;
 
+bool Record = false;
 ofstream TraceFile;
 
 Args* args = NULL;
@@ -64,16 +66,19 @@ Args::~Args()
 
 VOID BeforeMalloc(ADDRINT size)
 {
+    if(!Record) return;
     args->size = size;
 }
 
 VOID AfterMalloc(ADDRINT ret)
 {
+    if(!Record) return;
     TraceFile << "malloc(" << args->size << ") = " << ADDRINTToHexString(ret) << endl;
 }
 
 VOID Free(ADDRINT addr)
 {
+    if(!Record) return;
     string formatted_addr = "";
     if(addr == 0){
         formatted_addr = "0";
@@ -85,24 +90,35 @@ VOID Free(ADDRINT addr)
 
 VOID BeforeCalloc(ADDRINT num, ADDRINT size)
 {
+    if(!Record) return;
     args->num = num;
     args->size = size;
 }
 
 VOID AfterCalloc(ADDRINT ret)
 {
-    TraceFile << "calloc(" << args->num << "," << ADDRINTToHexString(args->size) +") = " + ADDRINTToHexString(ret) << endl;
+    if(!Record) return;
+    TraceFile << "calloc(" << args->num << ", " << ADDRINTToHexString(args->size) +") = " + ADDRINTToHexString(ret) << endl;
 }
 
 VOID BeforeRealloc(ADDRINT addr, ADDRINT size)
 {
+    if(!Record) return;
     args->addr = addr;
     args->size = size;
 }
 
 VOID AfterRealloc(ADDRINT ret)
 {
-    TraceFile << "realloc(" << ADDRINTToHexString(args->addr) << "," << args->size << ") = " << ADDRINTToHexString(ret) << endl;
+    if(!Record) return;
+    TraceFile << "realloc(" << ADDRINTToHexString(args->addr) << ", " << args->size << ") = " << ADDRINTToHexString(ret) << endl;
+}
+
+VOID RecordMainBegin() {
+  Record = true;
+}
+VOID RecordMainEnd() {
+  Record = false;
 }
 
 /* ===================================================================== */
@@ -174,6 +190,16 @@ VOID Image(IMG img, VOID *v)
                        IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
 
         RTN_Close(reallocRtn);
+    }
+
+    RTN mainRtn = RTN_FindByName(img, MAIN);
+    if (mainRtn.is_valid()) {
+      RTN_Open(mainRtn);
+      RTN_InsertCall(mainRtn, IPOINT_BEFORE, (AFUNPTR)RecordMainBegin,
+        IARG_END);
+      RTN_InsertCall(mainRtn, IPOINT_AFTER, (AFUNPTR)RecordMainEnd,
+        IARG_END);
+      RTN_Close(mainRtn);
     }
 }
 
