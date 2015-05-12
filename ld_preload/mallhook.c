@@ -87,7 +87,7 @@ void *malloc(size_t size) {
     snprintf(buf + n, 256 - n, "%p\n", p);
   else
     snprintf(buf + n, 256 - n, "0\n");
-  write(outfile, buf, strlen(buf));
+  (void) write(outfile, buf, strlen(buf));
   return p;
 }
 
@@ -107,7 +107,7 @@ void *calloc(size_t nmemb, size_t size) {
     snprintf(buf + n, 256 - n, "%p\n", p);
   else
     snprintf(buf + n, 256 - n, "0\n");
-  write(outfile, buf, strlen(buf));
+  (void) write(outfile, buf, strlen(buf));
   return p;
 }
 
@@ -130,7 +130,7 @@ void *realloc(void *ptr, size_t size) {
     snprintf(buf + n, 256 - n, "%p\n", p);
   else
     snprintf(buf + n, 256 - n, "0\n");
-  write(outfile, buf, strlen(buf));
+  (void) write(outfile, buf, strlen(buf));
   return p;
 }
 
@@ -146,7 +146,7 @@ void free(void *ptr) {
     snprintf(buf, 256, "free(0) = <void>\n");
 
   r_free(ptr);
-  write(outfile, buf, strlen(buf));
+  (void) write(outfile, buf, strlen(buf));
 }
 
 /*
