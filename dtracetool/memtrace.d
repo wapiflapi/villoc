@@ -23,12 +23,6 @@ to a certain degree via DTrace tuning [2] [3].
 #pragma D option destructive
 #pragma D option bufsize=256m
 
-/*
-TODO:
-    o More testing (custom test for each function)
-    o Customize villoc.py for reallocf() and valloc()
-    o Do we need all these predicates?
-*/
 
 pid$target::malloc:entry
 {
@@ -37,7 +31,7 @@ pid$target::malloc:entry
 
 pid$target::malloc:return
 {
-    printf("malloc(%#d) = %#p\n", self->msize, arg1);
+    printf("malloc(%d) = %#p\n", self->msize, arg1);
     self->msize = 0;
 }
 
