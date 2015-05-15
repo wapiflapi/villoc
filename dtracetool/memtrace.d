@@ -20,8 +20,6 @@ to a certain degree via DTrace tuning [2] [3].
 /* Re-enable to see potential data drops */
 #pragma D option quiet
 
-#pragma D option bufsize=256m
-
 
 pid$target::malloc:entry
 {
