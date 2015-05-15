@@ -162,6 +162,7 @@ def malloc(state, ret, size):
 def valloc(state, ret, size):
     malloc(state, ret, size)
 
+
 def calloc(state, ret, nmemb, size):
     malloc(state, ret, nmemb * size)
 
@@ -198,6 +199,13 @@ def realloc(state, ret, ptr, size):
         state[s].error = True
     else:
         state[s] = Block(ret, size, color=match.color)
+ 
+
+# This is just an empty stub for reallocf(). This is because internally
+# reallocf() calls realloc() so we catch it there.
+# However, for the sake of completness it's good to have it in the output.
+def reallocf(state, ret, ptr, size):
+    return
 
 
 operations = {
@@ -206,6 +214,7 @@ operations = {
     'valloc': valloc,
     'calloc': calloc,
     'realloc': realloc,
+    'reallocf': reallocf,
 }
 
 
