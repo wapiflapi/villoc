@@ -159,6 +159,9 @@ def malloc(state, ret, size):
         state.append(Block(ret, size))
 
 
+def valloc(state, ret, size):
+    malloc(state, ret, size)
+
 def calloc(state, ret, nmemb, size):
     malloc(state, ret, nmemb * size)
 
@@ -200,6 +203,7 @@ def realloc(state, ret, ptr, size):
 operations = {
     'free': free,
     'malloc': malloc,
+    'valloc': valloc,
     'calloc': calloc,
     'realloc': realloc,
 }
