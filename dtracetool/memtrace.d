@@ -30,6 +30,7 @@ pid$target::malloc:entry
 }
 
 pid$target::malloc:return
+/self->msize/
 {
     printf("malloc(%d) = %#p\n", self->msize, arg1);
     self->msize = 0;
