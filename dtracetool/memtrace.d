@@ -26,72 +26,112 @@ to a certain degree via DTrace tuning [2] [3].
 
 pid$target::malloc:entry
 {
-    self->msize = arg0;
+    msize = arg0;
+    malloc_fail = 1
 }
 
 pid$target::malloc:return
-/self->msize/
+/msize/
 {
-    printf("malloc(%d) = %#p\n", self->msize, arg1);
-    self->msize = 0;
+    printf("malloc(%d) = %#p\n", msize, arg1);
+    msize = 0;
+    malloc_fail = 0;
 }
 
 pid$target::valloc:entry
 {
-    self->vsize = arg0;
+    vsize = arg0;
+    valloc_fail = 1;
 }
 
 pid$target::valloc:return
-/self->vsize/
+/vsize/
 {
-    printf("valloc(%d) = %#p\n", self->vsize, arg1);
-    self->vsize = 0;
+    printf("valloc(%d) = %#p\n", vsize, arg1);
+    vsize = 0;
+    valloc_fail = 0;
 }
 
 pid$target::calloc:entry
 {
-    self->ccount = arg0;
-    self->csize = arg1;
+    ccount = arg0;
+    csize = arg1;
+    calloc_fail = 1;
 }
 
 pid$target::calloc:return
-/self->csize/
+/csize/
 {
-    printf("calloc(%d, %d) = %#p\n", self->ccount, self->csize, arg1);
-    self->ccount = 0;
-    self->csize = 0;
+    printf("calloc(%d, %d) = %#p\n", ccount, csize, arg1);
+    ccount = 0;
+    csize = 0;
+    calloc_fail = 0;
 }
 
 pid$target::realloc:entry
 {
-    self->raddr = arg0;
-    self->rsize = arg1;
+    raddr = arg0;
+    rsize = arg1;
+    realloc_fail = 1;
 }
 
 pid$target::realloc:return
-/self->rsize/
+/rsize/
 {
-    printf("realloc(%#p, %d) = %#p\n", self->raddr, self->rsize, arg1);
-    self->rsize = 0;
-    self->raddr = 0;
+    printf("realloc(%#p, %d) = %#p\n", raddr, rsize, arg1);
+    rsize = 0;
+    raddr = 0;
+    realloc_fail = 0;
 }
 
 pid$target::reallocf:entry
 {
-    self->rfaddr = arg0;
-    self->rfsize = arg1;
+    rfaddr = arg0;
+    rfsize = arg1;
+    reallocf_fail = 1;
 }
 
 pid$target::reallocf:return
-/self->rfsize/
+/rfsize/
 {
-    printf("reallocf(%#p, %d) = %#p\n", self->rfaddr, self->rfsize, arg1);
-    self->rfaddr = 0;
-    self->rfsize = 0;
+    printf("reallocf(%#p, %d) = %#p\n", rfaddr, rfsize, arg1);
+    rfaddr = 0;
+    rfsize = 0;
+    reallocf_fail = 0;
 }
 
 pid$target::free:entry
 {
-    printf("free(%#p) = 0\n", arg0);
+    printf("free(%#p) = <void>\n", arg0);
+}
+
+dtrace:::END
+/malloc_fail == 1/
+{
+    printf("malloc(%d) = <error>\n", msize);
+}
+
+dtrace:::END
+/valloc_fail == 1/
+{
+    printf("valloc(%d) = <error>\n", vsize);
+}
+
+dtrace:::END
+/calloc_fail == 1/
+{
+    printf("calloc(%d, %d) = <error>\n", ccount, csize);
+}
+
+dtrace:::END
+/realloc_fail == 1/
+{
+    printf("realloc(%#p, %d) = <error>\n", raddr, rsize);
+}
+
+dtrace:::END
+/reallocf_fail == 1/
+{
+    printf("reallocf(%#p, %d) = <error>\n", rfaddr, rfsize);
 }
 
