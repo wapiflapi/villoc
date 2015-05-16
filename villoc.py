@@ -187,6 +187,8 @@ def realloc(state, ret, ptr, size):
 
     if not ptr:
         return malloc(state, ret, size)
+    elif not ret:
+        return malloc(state, ret, size)
     elif not size:
         return free(state, ret, ptr)
 
