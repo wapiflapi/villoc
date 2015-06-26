@@ -223,6 +223,8 @@ operations = {
 def sanitize(x):
     if x is None:
         return None
+    if x == "<error>":
+        return None
     if x == "<void>":
         return 0
     return int(x, 0)
