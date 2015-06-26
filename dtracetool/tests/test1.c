@@ -1,3 +1,5 @@
+/* Testing for each alloc function from libc */
+
 #include <stdio.h>
 #include <stdlib.h>
 
