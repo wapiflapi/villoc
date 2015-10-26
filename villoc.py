@@ -219,6 +219,12 @@ def parse_ltrace(ltrace):
     match_err = r"^([a-z_]+)\((.*) <no return \.\.\.>"
 
     for line in ltrace:
+        # if the trace file contains PID (for ltrace -f)
+        try:
+            if line.split(' ')[0].isdigit():
+                line = ' '.join(line.split(' ')[1:])
+        except IndexError:
+            pass
 
         if not any(line.startswith(f) for f in operations):
             continue
