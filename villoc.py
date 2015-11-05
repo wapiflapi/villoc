@@ -220,18 +220,23 @@ def parse_ltrace(ltrace):
 
     for line in ltrace:
 
+        # if the trace file contains PID (for ltrace -f)
+        head, _, tail = line.partition(" ")
+        if head.isdigit():
+            line = tail
+
         if not any(line.startswith(f) for f in operations):
             continue
 
         try:
             func, args, ret = re.findall(match_call, line)[0]
-        except:
+        except Exception:
 
             try:
-                # maybe this stoped the program
+                # maybe this stopped the program
                 func, args = re.findall(match_err, line)[0]
                 ret = None
-            except:
+            except Exception:
                 print("ignoring line: %s" % line, file=sys.stderr)
                 continue
 
