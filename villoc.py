@@ -159,6 +159,10 @@ def malloc(state, ret, size):
         state.append(Block(ret, size))
 
 
+def valloc(state, ret, size):
+    malloc(state, ret, size)
+
+
 def calloc(state, ret, nmemb, size):
     malloc(state, ret, nmemb * size)
 
@@ -183,6 +187,8 @@ def realloc(state, ret, ptr, size):
 
     if not ptr:
         return malloc(state, ret, size)
+    elif not ret:
+        return malloc(state, ret, size)
     elif not size:
         return free(state, ret, ptr)
 
@@ -195,18 +201,29 @@ def realloc(state, ret, ptr, size):
         state[s].error = True
     else:
         state[s] = Block(ret, size, color=match.color)
+ 
+
+# This is just an empty stub for reallocf(). This is because internally
+# reallocf() calls realloc() so we catch it there.
+# However, for the sake of completness it's good to have it in the output.
+def reallocf(state, ret, ptr, size):
+    return
 
 
 operations = {
     'free': free,
     'malloc': malloc,
+    'valloc': valloc,
     'calloc': calloc,
     'realloc': realloc,
+    'reallocf': reallocf,
 }
 
 
 def sanitize(x):
     if x is None:
+        return None
+    if x == "<error>":
         return None
     if x == "<void>":
         return 0
