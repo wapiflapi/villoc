@@ -220,18 +220,23 @@ def parse_ltrace(ltrace):
 
     for line in ltrace:
 
+        # if the trace file contains PID (for ltrace -f)
+        head, _, tail = line.partition(" ")
+        if head.isdigit():
+            line = tail
+
         if not any(line.startswith(f) for f in operations):
             continue
 
         try:
             func, args, ret = re.findall(match_call, line)[0]
-        except:
+        except Exception:
 
             try:
-                # maybe this stoped the program
+                # maybe this stopped the program
                 func, args = re.findall(match_err, line)[0]
                 ret = None
-            except:
+            except Exception:
                 print("ignoring line: %s" % line, file=sys.stderr)
                 continue
 
@@ -284,12 +289,12 @@ def print_state(out, boundaries, state):
 
     known_stops = set()
 
-    todo = state
+    todo = {x.start():x for x in state}
     while todo:
 
         out.write('<div class="line" style="">\n')
 
-        done = []
+        done = set()
 
         current = None
         last = 0
@@ -305,15 +310,13 @@ def print_state(out, boundaries, state):
             if current:  # stops here.
                 known_stops.add(i)
                 current.gen_html(out, i - last)
-                done.append(current)
+                done.add(current)
                 last = i
 
             current = None
-            for block in todo:
-                if block.start() == b:
-                    current = block
-                    break
-            else:
+            try:
+                current = todo[b]
+            except:
                 continue
 
             if last != i:
@@ -344,7 +347,7 @@ def print_state(out, boundaries, state):
 
         out.write('</div>\n')
 
-        todo = [x for x in todo if x not in done]
+        todo = {x.start():x for x in todo.values() if x not in done}
 
     out.write('<div class="log">')
 
