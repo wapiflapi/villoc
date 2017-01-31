@@ -23,6 +23,7 @@ class State(list):
         return bounds
 
 
+
 class Printable():
 
     unit_width = 10
@@ -197,11 +198,15 @@ def realloc(state, ret, ptr, size):
         state[s] = Block(ret, size, color=match.color)
 
 
+def meta(state, ret, msg):
+    return ([], ["after: %s" % (msg,)])
+
 operations = {
     'free': free,
     'malloc': malloc,
     'calloc': calloc,
     'realloc': realloc,
+    'villoc': meta,
 }
 
 
@@ -210,7 +215,12 @@ def sanitize(x):
         return None
     if x == "<void>":
         return 0
-    return int(x, 0)
+    if x == "(nil)":
+        return 0
+    try:
+        return int(x, 0)
+    except:
+        return x
 
 
 def parse_ltrace(ltrace):
@@ -240,6 +250,7 @@ def parse_ltrace(ltrace):
                 print("ignoring line: %s" % line, file=sys.stderr)
                 continue
 
+        print("%s" % (line.strip(),), file=sys.stderr)
         args = list(map(sanitize, args.split(", ")))
         ret = sanitize(ret)
 
@@ -250,6 +261,8 @@ def build_timeline(events):
 
     boundaries = set()
     timeline = [State()]
+    errors = []
+    info = []
 
     for func, args, ret in events:
 
@@ -260,6 +273,17 @@ def build_timeline(events):
 
         state = State(b for b in timeline[-1] if not b.tmp)
 
+        meta = op(state, ret, *args)
+        if meta:
+            errors.extend(meta[0])
+            info.extend(meta[1])
+            continue
+        else:
+            state.errors.extend(errors)
+            state.info.extend(info)
+            errors = []
+            info = []
+
         call = "%s(%s)" % (func, ", ".join("%#x" % a for a in args))
 
         if ret is None:
@@ -267,7 +291,6 @@ def build_timeline(events):
         else:
             state.info.append("%s = %#x" % (call, ret))
 
-        op(state, ret, *args)
         boundaries.update(state.boundaries())
         timeline.append(state)
 
