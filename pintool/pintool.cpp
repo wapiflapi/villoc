@@ -8,11 +8,13 @@
 /* Names of malloc and free */
 /* ===================================================================== */
 #if defined(TARGET_MAC)
+#define MAIN "_main"
 #define CALLOC "_calloc"
 #define MALLOC "_malloc"
 #define FREE "_free"
 #define REALLOC "_realloc"
 #else
+#define MAIN "main"
 #define CALLOC "calloc"
 #define MALLOC "malloc"
 #define FREE "free"
@@ -27,7 +29,8 @@ using namespace std;
 
 class Args;
 
-ofstream TraceFile;
+bool record = false;
+ofstream trace_file;
 
 Args* args = NULL;
 
@@ -64,45 +67,59 @@ Args::~Args()
 
 VOID BeforeMalloc(ADDRINT size)
 {
+    if(!record) return;
     args->size = size;
 }
 
 VOID AfterMalloc(ADDRINT ret)
 {
-    TraceFile << "malloc(" << args->size << ") = " << ADDRINTToHexString(ret) << endl;
+    if(!record) return;
+    trace_file << "malloc(" << args->size << ") = " << ADDRINTToHexString(ret) << endl;
 }
 
 VOID Free(ADDRINT addr)
 {
+    if(!record) return;
     string formatted_addr = "";
     if(addr == 0){
         formatted_addr = "0";
     } else {
         formatted_addr = ADDRINTToHexString(addr);
     }
-    TraceFile << "free(" + formatted_addr +") = <void>" << endl;
+    trace_file << "free(" + formatted_addr +") = <void>" << endl;
 }
 
 VOID BeforeCalloc(ADDRINT num, ADDRINT size)
 {
+    if(!record) return;
     args->num = num;
     args->size = size;
 }
 
 VOID AfterCalloc(ADDRINT ret)
 {
-    TraceFile << "calloc(" << args->num << "," << ADDRINTToHexString(args->size) +") = " + ADDRINTToHexString(ret) << endl;
+    if(!record) return;
+    trace_file << "calloc(" << args->num << ", " << ADDRINTToHexString(args->size) +") = " + ADDRINTToHexString(ret) << endl;
 }
 
 VOID BeforeRealloc(ADDRINT addr, ADDRINT size)
 {
+    if(!record) return;
     args->addr = addr;
     args->size = size;
 }
 
 VOID AfterRealloc(ADDRINT ret)
 {
-    TraceFile << "realloc(" << ADDRINTToHexString(args->addr) << "," << args->size << ") = " << ADDRINTToHexString(ret) << endl;
+    if(!record) return;
+    trace_file << "realloc(" << ADDRINTToHexString(args->addr) << ", " << args->size << ") = " << ADDRINTToHexString(ret) << endl;
+}
+
+VOID RecordMainBegin() {
+  record = true;
+}
+VOID RecordMainEnd() {
+  record = false;
 }
 
 /* ===================================================================== */
@@ -115,65 +132,78 @@ VOID Image(IMG img, VOID *v)
     // of each malloc() or free(), and the return value of malloc().
     //
     //  Find the malloc() function.
-    RTN mallocRtn = RTN_FindByName(img, MALLOC);
-    if (RTN_Valid(mallocRtn))
+    RTN malloc_rtn = RTN_FindByName(img, MALLOC);
+    if (RTN_Valid(malloc_rtn))
     {
-        RTN_Open(mallocRtn);
+        RTN_Open(malloc_rtn);
 
         // Instrument malloc() to print the input argument value and the return value.
-        RTN_InsertCall(mallocRtn, IPOINT_BEFORE, (AFUNPTR)BeforeMalloc,
+        RTN_InsertCall(malloc_rtn, IPOINT_BEFORE, (AFUNPTR)BeforeMalloc,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
                        IARG_END);
-        RTN_InsertCall(mallocRtn, IPOINT_AFTER, (AFUNPTR)AfterMalloc,
+        RTN_InsertCall(malloc_rtn, IPOINT_AFTER, (AFUNPTR)AfterMalloc,
                        IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
 
-        RTN_Close(mallocRtn);
+        RTN_Close(malloc_rtn);
     }
 
     // Find the free() function.
-    RTN freeRtn = RTN_FindByName(img, FREE);
-    if (RTN_Valid(freeRtn))
+    RTN free_rtn = RTN_FindByName(img, FREE);
+    if (RTN_Valid(free_rtn))
     {
-        RTN_Open(freeRtn);
+        RTN_Open(free_rtn);
         // Instrument free() to print the input argument value.
-        RTN_InsertCall(freeRtn, IPOINT_BEFORE, (AFUNPTR)Free,
+        RTN_InsertCall(free_rtn, IPOINT_BEFORE, (AFUNPTR)Free,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
                        IARG_END);
 
-        RTN_Close(freeRtn);
+        RTN_Close(free_rtn);
     }
 
     //Find the calloc() function
-    RTN callocRtn = RTN_FindByName(img, CALLOC);
-    if (RTN_Valid(callocRtn))
+    RTN calloc_rtn = RTN_FindByName(img, CALLOC);
+    if (RTN_Valid(calloc_rtn))
     {
-        RTN_Open(callocRtn);
+        RTN_Open(calloc_rtn);
 
-        // Instrument callocRtn to print the input argument value and the return value.
-        RTN_InsertCall(callocRtn, IPOINT_BEFORE, (AFUNPTR)BeforeCalloc,
+        // Instrument calloc_rtn to print the input argument value and the return value.
+        RTN_InsertCall(calloc_rtn, IPOINT_BEFORE, (AFUNPTR)BeforeCalloc,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
                        IARG_END);
-        RTN_InsertCall(callocRtn, IPOINT_AFTER, (AFUNPTR)AfterCalloc,
+        RTN_InsertCall(calloc_rtn, IPOINT_AFTER, (AFUNPTR)AfterCalloc,
                        IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
 
-        RTN_Close(callocRtn);
+        RTN_Close(calloc_rtn);
     }
     //Find the realloc() function
-    RTN reallocRtn = RTN_FindByName(img, REALLOC);
-    if (RTN_Valid(reallocRtn))
+    RTN realloc_rtn = RTN_FindByName(img, REALLOC);
+    if (RTN_Valid(realloc_rtn))
     {
-        RTN_Open(reallocRtn);
+        RTN_Open(realloc_rtn);
 
         // Instrument malloc() to print the input argument value and the return value.
-        RTN_InsertCall(reallocRtn, IPOINT_BEFORE, (AFUNPTR)BeforeRealloc,
+        RTN_InsertCall(realloc_rtn, IPOINT_BEFORE, (AFUNPTR)BeforeRealloc,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
                        IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
                        IARG_END);
-        RTN_InsertCall(reallocRtn, IPOINT_AFTER, (AFUNPTR)AfterRealloc,
+        RTN_InsertCall(realloc_rtn, IPOINT_AFTER, (AFUNPTR)AfterRealloc,
                        IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
 
-        RTN_Close(reallocRtn);
+        RTN_Close(realloc_rtn);
+    }
+
+    RTN main_rtn = RTN_FindByName(img, MAIN);
+    if (main_rtn.is_valid()) {
+        RTN_Open(main_rtn);
+        RTN_InsertCall(main_rtn, IPOINT_BEFORE, (AFUNPTR)RecordMainBegin,
+                       IARG_END);
+        RTN_InsertCall(main_rtn, IPOINT_AFTER, (AFUNPTR)RecordMainEnd,
+                       IARG_END);
+        RTN_Close(main_rtn);
+    } else {
+        //if the binary stripped then record everything
+        record = true;
     }
 }
 
@@ -181,7 +211,7 @@ VOID Image(IMG img, VOID *v)
 
 VOID Fini(INT32 code, VOID *v)
 {
-    TraceFile.close();
+    trace_file.close();
 }
 
 /* ===================================================================== */
@@ -215,8 +245,8 @@ int main(int argc, char *argv[])
     {
         return Usage();
     }
-    TraceFile.open(KnobOutputFile.Value().c_str());
-    // Write to a file since TraceFile and cerr maybe closed by the application
+    trace_file.open(KnobOutputFile.Value().c_str());
+    // Write to a file since trace_file and cerr maybe closed by the application
     Args* initial = new Args();
     args = initial;
     // Register Image to be called to instrument functions.
