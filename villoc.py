@@ -225,8 +225,8 @@ def sanitize(x):
 
 def parse_ltrace(ltrace):
 
-    match_call = re.compile(r"^([A-z_]+->)?([A-z_]+)\((.*)\) += (.*)$")
-    match_err = re.compile(r"^([A-z_]+->)?([a-z_]+)\((.*) <no return \.\.\.>")
+    match_call = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*)\) += (.*)$")
+    match_err = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*) <no return \.\.\.>")
 
     for line in ltrace:
 
@@ -244,6 +244,8 @@ def parse_ltrace(ltrace):
             try:
                 # maybe this stopped the program
                 _, func, args = match_err.findall(line)[0]
+                if not func in operations:
+                    continue
                 ret = None
             except Exception:
                 print("ignoring line: %s" % line, file=sys.stderr)
