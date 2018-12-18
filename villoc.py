@@ -215,7 +215,7 @@ def sanitize(x):
         return None
     if x == "<void>":
         return 0
-    if x == "(nil)":
+    if x in ("(nil)", "nil"):
         return 0
     try:
         return int(x, 0)
@@ -225,8 +225,8 @@ def sanitize(x):
 
 def parse_ltrace(ltrace):
 
-    match_call = r"^([a-z_]+)\((.*)\) += (.*)"
-    match_err = r"^([a-z_]+)\((.*) <no return \.\.\.>"
+    match_call = re.compile(r"^([A-z_]+->)?([A-z_]+)\((.*)\) += (.*)$")
+    match_err = re.compile(r"^([A-z_]+->)?([a-z_]+)\((.*) <no return \.\.\.>")
 
     for line in ltrace:
 
@@ -235,16 +235,15 @@ def parse_ltrace(ltrace):
         if head.isdigit():
             line = tail
 
-        if not any(line.startswith(f) for f in operations):
-            continue
-
         try:
-            func, args, ret = re.findall(match_call, line)[0]
+            _, func, args, ret = match_call.findall(line)[0]
+            if not func in operations:
+                continue
         except Exception:
 
             try:
                 # maybe this stopped the program
-                func, args = re.findall(match_err, line)[0]
+                _, func, args = match_err.findall(line)[0]
                 ret = None
             except Exception:
                 print("ignoring line: %s" % line, file=sys.stderr)
