@@ -227,7 +227,11 @@ def parse_ltrace(ltrace):
 
     match_call = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*)\) += (.*)$")
     match_err = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*) <no return \.\.\.>")
+    match_unfinished = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*) <unfinished \.\.\.>")
+    match_resumed = re.compile(r"^<\.\.\. (.*) resumed> \) += (.*)$")
 
+    # for multithreaded applications
+    unfinished_calls = {}
     for line in ltrace:
 
         # if the trace file contains PID (for ltrace -f)
@@ -237,6 +241,7 @@ def parse_ltrace(ltrace):
 
         try:
             _, func, args, ret = match_call.findall(line)[0]
+
             if not func in operations:
                 continue
         except Exception:
@@ -248,10 +253,32 @@ def parse_ltrace(ltrace):
                     continue
                 ret = None
             except Exception:
-                print("ignoring line: %s" % line, file=sys.stderr)
-                continue
+
+                try:
+                    # maybe this is an unfinished operation
+                    _, func, args = match_unfinished.findall(line)[0]
+                    unfinished_calls[head] = (func, args)
+                    
+                    continue
+
+                except Exception:
+                    try:
+                        # or a resumed operation
+                        if len(unfinished_calls) > 0:
+                            func, ret = match_resumed.findall(line)[0]
+                            
+                            if not unfinished_calls[head][0] == func:
+                                continue
+                            args = unfinished_calls[head][1]
+                            unfinished_calls.pop(head)
+
+                    except Exception:
+                        print("ignoring line: %s" % line, file=sys.stderr)
+                        continue
 
         print("%s" % (line.strip(),), file=sys.stderr)
+        if type(args) == list:
+            args = ''.join(args)
         args = list(map(sanitize, args.split(", ")))
         ret = sanitize(ret)
 
