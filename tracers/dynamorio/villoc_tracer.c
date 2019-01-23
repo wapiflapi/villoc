@@ -3,159 +3,144 @@
 #include "drwrap.h"
 #include "drmgr.h"
 
-// reallocarray is the longest possible string to log
-// so the max size the realloc can have will be the of the per thread logging
-#define BUF_SIZE (27 + 19 * 2 + 20 * 2)
+#define BUF_SIZE (1024)
 
 int tls_idx;
 
-void reset_buf()
+void reset_buf(char *buf)
 {
-  void *drc = dr_get_current_drcontext();
-
-  char *buf = drmgr_get_tls_field(drc, tls_idx);
   for (size_t i = 0; i < BUF_SIZE; i++)
     buf[i] = 0;
 }
 
-void pre_malloc(void *wrapctx, OUT void **user_data)
+void pre_malloc(void *wrapctx, OUT void **buf_ptr)
 {
   void *drc = dr_get_current_drcontext();
   char *buf = drmgr_get_tls_field(drc, tls_idx);
 
-  *user_data = (void *)1;
-
   // another print is in buf, so ignoring this call
   if (buf[0] != 0)
     {
-      *user_data = NULL;
+      *buf_ptr = NULL;
       return;
     }
+  else
+    *buf_ptr = buf;
 
   dr_snprintf(buf, BUF_SIZE, "malloc(%d", drwrap_get_arg(wrapctx, 0));
 }
 
-void post_malloc(void *wrapctx, void *user_data)
+void post_malloc(void *wrapctx, void *buf_ptr)
 {
-  void *drc = dr_get_current_drcontext();
-
-  if (user_data == NULL)
+  if (buf_ptr == NULL)
     return;
 
-  dr_printf("%s) = %p\n", drmgr_get_tls_field(drc, tls_idx), drwrap_get_retval(wrapctx));
-  reset_buf();
+  dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+  reset_buf(buf_ptr);
 }
 
-void pre_calloc(void *wrapctx, OUT void **user_data)
+void pre_calloc(void *wrapctx, OUT void **buf_ptr)
 {
   void *drc = dr_get_current_drcontext();
   char *buf = drmgr_get_tls_field(drc, tls_idx);
 
-  *user_data = (void *)1;
-
   // another print is in buf, so ignoring this call
   if (buf[0] != 0)
     {
-      *user_data = NULL;
+      *buf_ptr = NULL;
       return;
     }
+  else
+    *buf_ptr = buf;
 
-  dr_snprintf(drmgr_get_tls_field(drc, tls_idx), BUF_SIZE, "calloc(%zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
+  dr_snprintf(buf, BUF_SIZE, "calloc(%zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
 }
 
-void post_calloc(void *wrapctx, void *user_data)
+void post_calloc(void *wrapctx, void *buf_ptr)
 {
-  void *drc = dr_get_current_drcontext();
-
-  if (user_data == NULL)
+  if (buf_ptr == NULL)
     return;
 
-  dr_printf("%s) = %p\n", drmgr_get_tls_field(drc, tls_idx), drwrap_get_retval(wrapctx));
-  reset_buf();
+  dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+  reset_buf(buf_ptr);
 }
 
-void pre_reallocarray(void *wrapctx, OUT void **user_data)
+void pre_reallocarray(void *wrapctx, OUT void **buf_ptr)
 {
   void *drc = dr_get_current_drcontext();
   char *buf = drmgr_get_tls_field(drc, tls_idx);
 
-  *user_data = (void *)1;
-
   // another print is in buf, so ignoring this call
   if (buf[0] != 0)
     {
-      *user_data = NULL;
+      *buf_ptr = NULL;
       return;
     }
+  else
+    *buf_ptr = buf;
 
-  dr_snprintf(drmgr_get_tls_field(drc, tls_idx), BUF_SIZE, "reallocarray(%p, %zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1), drwrap_get_arg(wrapctx, 2));
+  dr_snprintf(buf, BUF_SIZE, "reallocarray(%p, %zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1), drwrap_get_arg(wrapctx, 2));
 }
 
-void post_reallocarray(void *wrapctx, void *user_data)
+void post_reallocarray(void *wrapctx, void *buf_ptr)
 {
-  void *drc = dr_get_current_drcontext();
-
-  if (user_data == NULL)
+  if (buf_ptr == NULL)
     return;
 
-  dr_printf("%s) = %p\n", drmgr_get_tls_field(drc, tls_idx), drwrap_get_retval(wrapctx));
-  reset_buf();
+  dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+  reset_buf(buf_ptr);
 }
 
-void pre_realloc(void *wrapctx, OUT void **user_data)
+void pre_realloc(void *wrapctx, OUT void **buf_ptr)
 {
   void *drc = dr_get_current_drcontext();
   char *buf = drmgr_get_tls_field(drc, tls_idx);
 
-  *user_data = (void *)1;
-
   // another print is in buf, so ignoring this call
   if (buf[0] != 0)
     {
-      *user_data = NULL;
+      *buf_ptr = NULL;
       return;
     }
+  else
+    *buf_ptr = buf;
 
-  dr_snprintf(drmgr_get_tls_field(drc, tls_idx), BUF_SIZE, "realloc(%p, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
+  dr_snprintf(buf, BUF_SIZE, "realloc(%p, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
 }
 
-void post_realloc(void *wrapctx, void *user_data)
+void post_realloc(void *wrapctx, void *buf_ptr)
 {
-  void *drc = dr_get_current_drcontext();
-
-  if (user_data == NULL)
+  if (buf_ptr == NULL)
     return;
 
-  dr_printf("%s) = %p\n", drmgr_get_tls_field(drc, tls_idx), drwrap_get_retval(wrapctx));
-  reset_buf();
+  dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+  reset_buf(buf_ptr);
 }
 
-void pre_free(void *wrapctx, OUT void **user_data)
+void pre_free(void *wrapctx, OUT void **buf_ptr)
 {
   void *drc = dr_get_current_drcontext();
   char *buf = drmgr_get_tls_field(drc, tls_idx);
 
-  *user_data = (void *)1;
-
   // another print is in buf, so ignoring this call
   if (buf[0] != 0)
     {
-      *user_data = NULL;
+      *buf_ptr = NULL;
       return;
     }
+  else
+    *buf_ptr = buf;
 
-  dr_snprintf(drmgr_get_tls_field(drc, tls_idx), BUF_SIZE, "free(%p", drwrap_get_arg(wrapctx, 0));
+  dr_snprintf(buf, BUF_SIZE, "free(%p", drwrap_get_arg(wrapctx, 0));
 }
 
-void post_free(void *wrapctx, void *user_data)
+void post_free(void *wrapctx, void *buf_ptr)
 {
-  void *drc = dr_get_current_drcontext();
-
-  if (user_data == NULL)
+  if (buf_ptr == NULL)
     return;
 
-  dr_printf("%s) = <void>\n", drmgr_get_tls_field(drc, tls_idx), drwrap_get_retval(wrapctx));
-  reset_buf();
+  dr_printf("%s) = <void>\n", buf_ptr, drwrap_get_retval(wrapctx));
+  reset_buf(buf_ptr);
 }
 
 void load_event(__attribute__((unused))void *drcontext,
@@ -189,7 +174,7 @@ void thread_init_event(void *drc)
   char *buf = dr_global_alloc(BUF_SIZE);
 
   drmgr_set_tls_field(drc, tls_idx, buf);
-  reset_buf();
+  reset_buf(buf);
 }
 
 void thread_exit_event(void *drc)
