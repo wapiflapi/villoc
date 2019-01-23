@@ -17,7 +17,13 @@ class State(list):
 
     def append(self, block):
         block.meta.extend(self.meta)
+        self.meta = []
         super().append(block)
+
+    def __setitem__(self, key, block):
+        block.meta.extend(self.meta)
+        self.meta = []
+        super().__setitem__(key, block)
 
     def boundaries(self):
         bounds = set()
@@ -95,7 +101,7 @@ class Block(Printable):
     classes = Printable.classes + ["normal"]
 
     def __init__(self, addr, size, error=False, tmp=False, **kwargs):
-        self.color = kwargs.get('color', random_color())
+        self.color = kwargs.pop('color', random_color())
         self.uaddr = addr
         self.usize = size
         self.details = True
@@ -187,8 +193,9 @@ def free(state, ret, ptr):
     if match is None:
         return
     elif ret is None:
-        state[s] = Block(match.uaddr, match.usize,
-                         error=True, color=match.color)
+        state[s] = Block(
+            match.uaddr, match.usize, error=True, color=match.color
+        )
     else:
         del state[s]
 
