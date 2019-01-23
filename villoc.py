@@ -12,7 +12,18 @@ class State(list):
     def __init__(self, *args, **kwargs):
         self.errors = []
         self.info = []
+        self.meta = []
         super().__init__(*args, **kwargs)
+
+    def append(self, block):
+        block.meta.extend(self.meta)
+        self.meta = []
+        super().append(block)
+
+    def __setitem__(self, key, block):
+        block.meta.extend(self.meta)
+        self.meta = []
+        super().__setitem__(key, block)
 
     def boundaries(self):
         bounds = set()
@@ -23,21 +34,27 @@ class State(list):
         return bounds
 
 
-
 class Printable():
 
     unit_width = 10
     classes = ["block"]
 
+    def __init__(self, meta=None):
+        self.meta = meta if meta is not None else []
+
     def boundaries(self):
         return (self.start(), self.end())
 
     def gen_html(self, out, width, color=""):
+
         out.write('<div class="%s" style="width: %dem; %s;">' %
                   (" ".join(self.classes), 10 * width, color))
+
         if self.details:
             out.write('<strong>%#x</strong><br />' % self.start())
-            out.write(self.more_html())
+            out.write("%s<br />" % self.more_html())
+            out.write("<br />".join("<strong>%s</strong>" % m for m in self.meta))
+
         else:
             out.write('&nbsp;')
 
@@ -55,10 +72,11 @@ class Empty(Printable):
 
     classes = Printable.classes + ["empty"]
 
-    def __init__(self, start, end, display=True):
+    def __init__(self, start, end, display=True, **kwargs):
         self._start = start
         self._end = end
         self.details = display
+        super().__init__(**kwargs)
 
     def start(self):
         return self._start
@@ -83,12 +101,13 @@ class Block(Printable):
     classes = Printable.classes + ["normal"]
 
     def __init__(self, addr, size, error=False, tmp=False, **kwargs):
-        self.color = kwargs.get('color', random_color())
+        self.color = kwargs.pop('color', random_color())
         self.uaddr = addr
         self.usize = size
         self.details = True
         self.error = error
         self.tmp = tmp
+        super().__init__(**kwargs)
 
     def start(self):
         return self.uaddr - self.header
@@ -117,8 +136,8 @@ class Block(Printable):
         return "+ %#x (%#x)" % (self.end() - self.start(), self.usize)
 
     def __repr__(self):
-        return "%s(start=%#x, end=%#x, tmp=%s)" % (
-            self.__class__.__name__, self.start(), self.end(), self.tmp)
+        return "%s(start=%#x, end=%#x, tmp=%s, meta=%s)" % (
+            self.__class__.__name__, self.start(), self.end(), self.tmp, self.meta)
 
 
 class Marker(Block):
@@ -174,8 +193,9 @@ def free(state, ret, ptr):
     if match is None:
         return
     elif ret is None:
-        state[s] = Block(match.uaddr, match.usize,
-                         error=True, color=match.color)
+        state[s] = Block(
+            match.uaddr, match.usize, error=True, color=match.color
+        )
     else:
         del state[s]
 
@@ -198,21 +218,25 @@ def realloc(state, ret, ptr, size):
         state[s] = Block(ret, size, color=match.color)
 
 
-def meta(state, ret, msg):
-    return ([], ["after: %s" % (msg,)])
+def meta(state, ret, *args):
+    msg = args[0]
+    anotations = args[1:]
+    return ([], ["after: %s, meta=%s" % (msg, anotations)], anotations)
+
 
 operations = {
     'free': free,
     'malloc': malloc,
     'calloc': calloc,
     'realloc': realloc,
-    'villoc': meta,
+    '@villoc': meta,
 }
 
 
 def sanitize(x):
     if x is None:
         return None
+    x = x.strip()
     if x == "<void>":
         return 0
     if x in ("(nil)", "nil"):
@@ -225,8 +249,8 @@ def sanitize(x):
 
 def parse_ltrace(ltrace):
 
-    match_call = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*)\) += (.*)$")
-    match_err = re.compile(r"^([A-z_\.]+->)?([A-z_]+)\((.*) <no return \.\.\.>")
+    match_call = re.compile(r"^([@A-z_\.]+->)?([@A-z_]+)\((.*)\) += (.*)$")
+    match_err = re.compile(r"^([@A-z_\.]+->)?([@A-z_]+)\((.*) <no return \.\.\.>")
 
     for line in ltrace:
 
@@ -248,11 +272,9 @@ def parse_ltrace(ltrace):
                     continue
                 ret = None
             except Exception:
-                print("ignoring line: %s" % line, file=sys.stderr)
                 continue
 
-        print("%s" % (line.strip(),), file=sys.stderr)
-        args = list(map(sanitize, args.split(", ")))
+        args = list(map(sanitize, args.split(",")))
         ret = sanitize(ret)
 
         yield func, args, ret
@@ -264,6 +286,10 @@ def build_timeline(events):
     timeline = [State()]
     errors = []
     info = []
+    meta = []
+
+    # FIXME: remove those accumulators, we should do this by keeping
+    # the same state from one loop to the other.
 
     for func, args, ret in events:
 
@@ -273,17 +299,24 @@ def build_timeline(events):
             continue
 
         state = State(b for b in timeline[-1] if not b.tmp)
+        state.errors.extend(errors)
+        state.info.extend(info)
+        state.meta.extend(meta)
 
-        meta = op(state, ret, *args)
-        if meta:
-            errors.extend(meta[0])
-            info.extend(meta[1])
+        meta_info = op(state, ret, *args)
+        if meta_info:
+            # This was not an op but something meta.
+            # Add the info to accumulators and continue.
+            errors.extend(meta_info[0])
+            info.extend(meta_info[1])
+            meta.extend(meta_info[2])
             continue
-        else:
-            state.errors.extend(errors)
-            state.info.extend(info)
-            errors = []
-            info = []
+
+        # This was an op and not something meta.
+        # Clean accumulators.
+        errors = []
+        info = []
+        meta = []
 
         call = "%s(%s)" % (func, ", ".join("%#x" % a for a in args))
 
@@ -411,7 +444,7 @@ margin: 0.8em 0 0 0.1em;
 ''')
 
     out.write('''.block {
-float: left;
+float: right;
 padding: 0.5em 0;
 text-align: center;
 color: black;
@@ -420,9 +453,9 @@ color: black;
 
     out.write('''.normal {
 
--webkit-box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.80);
--moz-box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.80);
-box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.80);
+-webkit-box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.80);
+-moz-box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.80);
+box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.80);
 
 }
 ''')
@@ -494,7 +527,7 @@ $(window).scroll(function(){
 
     out.write('<div class="timeline">\n')
 
-    for state in timeline:
+    for state in reversed(timeline):
         print_state(out, boundaries, state)
 
     out.write('</div>\n')
