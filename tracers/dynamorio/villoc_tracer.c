@@ -5,13 +5,16 @@
 
 #define BUF_SIZE (1024)
 
+
 int tls_idx;
+
 
 void reset_buf(char *buf)
 {
     for (size_t i = 0; i < BUF_SIZE; i++)
         buf[i] = 0;
 }
+
 
 void pre_malloc(void *wrapctx, OUT void **buf_ptr)
 {
@@ -30,6 +33,7 @@ void pre_malloc(void *wrapctx, OUT void **buf_ptr)
     dr_snprintf(buf, BUF_SIZE, "malloc(%d", drwrap_get_arg(wrapctx, 0));
 }
 
+
 void post_malloc(void *wrapctx, void *buf_ptr)
 {
     if (buf_ptr == NULL)
@@ -38,6 +42,7 @@ void post_malloc(void *wrapctx, void *buf_ptr)
     dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
+
 
 void pre_calloc(void *wrapctx, OUT void **buf_ptr)
 {
@@ -56,6 +61,7 @@ void pre_calloc(void *wrapctx, OUT void **buf_ptr)
     dr_snprintf(buf, BUF_SIZE, "calloc(%zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
 }
 
+
 void post_calloc(void *wrapctx, void *buf_ptr)
 {
     if (buf_ptr == NULL)
@@ -64,6 +70,7 @@ void post_calloc(void *wrapctx, void *buf_ptr)
     dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
+
 
 void pre_realloc(void *wrapctx, OUT void **buf_ptr)
 {
@@ -82,6 +89,7 @@ void pre_realloc(void *wrapctx, OUT void **buf_ptr)
     dr_snprintf(buf, BUF_SIZE, "realloc(%p, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1));
 }
 
+
 void post_realloc(void *wrapctx, void *buf_ptr)
 {
     if (buf_ptr == NULL)
@@ -90,6 +98,7 @@ void post_realloc(void *wrapctx, void *buf_ptr)
     dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
+
 
 void pre_reallocarray(void *wrapctx, OUT void **buf_ptr)
 {
@@ -107,6 +116,7 @@ void pre_reallocarray(void *wrapctx, OUT void **buf_ptr)
 
     dr_snprintf(buf, BUF_SIZE, "reallocarray(%p, %zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1), drwrap_get_arg(wrapctx, 2));
 }
+
 
 void post_reallocarray(void *wrapctx, void *buf_ptr)
 {
@@ -143,6 +153,7 @@ void post_free(void *wrapctx, void *buf_ptr)
     reset_buf(buf_ptr);
 }
 
+
 void load_event(__attribute__((unused))void *drcontext,
                 const module_data_t *mod,
                 __attribute__((unused))bool loaded)
@@ -169,6 +180,7 @@ void load_event(__attribute__((unused))void *drcontext,
         DR_ASSERT(drwrap_wrap(reallocarray, pre_reallocarray, post_reallocarray));
 }
 
+
 void thread_init_event(void *drc)
 {
     char *buf = dr_global_alloc(BUF_SIZE);
@@ -176,6 +188,7 @@ void thread_init_event(void *drc)
     drmgr_set_tls_field(drc, tls_idx, buf);
     reset_buf(buf);
 }
+
 
 void thread_exit_event(void *drc)
 {
@@ -186,11 +199,13 @@ void thread_exit_event(void *drc)
     dr_global_free(buf, BUF_SIZE);
 }
 
+
 void exit_event(void)
 {
     drwrap_exit();
     drmgr_exit();
 }
+
 
 DR_EXPORT void dr_client_main(client_id_t __attribute__((unused))id,
                               __attribute__((unused))int argc,
