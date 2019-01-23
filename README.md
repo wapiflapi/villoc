@@ -1,4 +1,3 @@
-
 # Villoc
 
 Villoc is a heap visualisation tool, it's a python script that renders a static
@@ -22,7 +21,40 @@ will be interleaved and might confuse villoc sometimes.
 setarch x86_64 -R ltrace -o trace ./target; villoc.py trace out.html;
 ```
 
-![image](https://pbs.twimg.com/media/CDCQCzyWYAAck7k.png:large)
+## Using DynamoRIO
+
+The problem with ltrace is that it doesn't track calls to malloc from
+other libraries or from within libc itself.
+
+Please check https://github.com/wapiflapi/villoc/tree/master/tracers/dynamorio
+for (easy!) instructions for using a DynamoRIO tool to achieve full tracing.
+
+
+## Annotations
+
+Villoc's input should look like ltrace's output, other tracers should output
+compatible logs. Villoc also listens to annotations of the following form:
+
+``` text
+@villoc(comma separated annotations) = <void>`
+```
+
+When using this it's possible to mark certain block as being significant which
+makes analyzing villoc's output that much easier.
+
+### Annotations from C code through DynamoRIO.
+
+When using the dynamorio tracer there is a hack to easily inject annotations
+from a target's source code:
+
+``` C
+sscanf("Format string %d %d, FOO %s", "@villoc", 1, 2, "BAR");
+```
+
+Will inject `Format string 1 2` into villoc's log and add the `FOO`
+and `BAR` tags to the block affected by the next memory operation.
+
+![image](https://pbs.twimg.com/media/DxnUnRzWwAU4kcD?format=jpg&name=large)
 
 
 ## Which malloc

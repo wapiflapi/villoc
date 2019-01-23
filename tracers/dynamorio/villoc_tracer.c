@@ -127,6 +127,7 @@ void post_reallocarray(void *wrapctx, void *buf_ptr)
     reset_buf(buf_ptr);
 }
 
+
 void pre_free(void *wrapctx, OUT void **buf_ptr)
 {
     void *drc = dr_get_current_drcontext();
@@ -154,6 +155,37 @@ void post_free(void *wrapctx, void *buf_ptr)
 }
 
 
+// If we use this its when we have access to sscanf,
+// we assume we'll have strcmp also.
+int strcmp(const char *s1, const char *s2);
+
+
+void pre_sscanf(void *wrapctx, OUT void **buf_ptr)
+{
+    (void) buf_ptr;
+
+    char const *str = drwrap_get_arg(wrapctx, 0);
+    char const *fmt = drwrap_get_arg(wrapctx, 1);
+
+    char const *arg1 = drwrap_get_arg(wrapctx, 2);
+    char const *arg2 = drwrap_get_arg(wrapctx, 3);
+    char const *arg3 = drwrap_get_arg(wrapctx, 4);
+    char const *arg4 = drwrap_get_arg(wrapctx, 5);
+
+    if (strcmp(fmt, "@villoc")) {
+        return;
+    }
+
+    // This is probably a call for us to monitor.
+    // Our format string is passed through sscanf's str since that
+    // way it's not interpreted by the original call.
+
+    dr_printf("%s(", fmt);
+    dr_printf(str, arg1, arg2, arg3, arg4);
+    dr_printf(") = <void>\n");
+}
+
+
 void load_event(__attribute__((unused))void *drcontext,
                 const module_data_t *mod,
                 __attribute__((unused))bool loaded)
@@ -163,6 +195,7 @@ void load_event(__attribute__((unused))void *drcontext,
     app_pc realloc = (app_pc)dr_get_proc_address(mod->handle, "__libc_realloc");
     app_pc reallocarray = (app_pc)dr_get_proc_address(mod->handle, "__libc_reallocarray");
     app_pc free = (app_pc)dr_get_proc_address(mod->handle, "__libc_free");
+    app_pc sscanf = (app_pc)dr_get_proc_address(mod->handle, "sscanf");
 
     if (malloc)
         DR_ASSERT(drwrap_wrap(malloc, pre_malloc, post_malloc));
@@ -178,6 +211,10 @@ void load_event(__attribute__((unused))void *drcontext,
 
     if (reallocarray)
         DR_ASSERT(drwrap_wrap(reallocarray, pre_reallocarray, post_reallocarray));
+
+    if (sscanf)
+        DR_ASSERT(drwrap_wrap(sscanf, pre_sscanf, NULL));
+
 }
 
 
