@@ -65,32 +65,6 @@ void post_calloc(void *wrapctx, void *buf_ptr)
     reset_buf(buf_ptr);
 }
 
-void pre_reallocarray(void *wrapctx, OUT void **buf_ptr)
-{
-    void *drc = dr_get_current_drcontext();
-    char *buf = drmgr_get_tls_field(drc, tls_idx);
-
-    // another print is in buf, so ignoring this call
-    if (buf[0] != 0)
-    {
-        *buf_ptr = NULL;
-        return;
-    }
-    else
-        *buf_ptr = buf;
-
-    dr_snprintf(buf, BUF_SIZE, "reallocarray(%p, %zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1), drwrap_get_arg(wrapctx, 2));
-}
-
-void post_reallocarray(void *wrapctx, void *buf_ptr)
-{
-    if (buf_ptr == NULL)
-        return;
-
-    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
-    reset_buf(buf_ptr);
-}
-
 void pre_realloc(void *wrapctx, OUT void **buf_ptr)
 {
     void *drc = dr_get_current_drcontext();
@@ -109,6 +83,32 @@ void pre_realloc(void *wrapctx, OUT void **buf_ptr)
 }
 
 void post_realloc(void *wrapctx, void *buf_ptr)
+{
+    if (buf_ptr == NULL)
+        return;
+
+    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+    reset_buf(buf_ptr);
+}
+
+void pre_reallocarray(void *wrapctx, OUT void **buf_ptr)
+{
+    void *drc = dr_get_current_drcontext();
+    char *buf = drmgr_get_tls_field(drc, tls_idx);
+
+    // another print is in buf, so ignoring this call
+    if (buf[0] != 0)
+    {
+        *buf_ptr = NULL;
+        return;
+    }
+    else
+        *buf_ptr = buf;
+
+    dr_snprintf(buf, BUF_SIZE, "reallocarray(%p, %zu, %zu", drwrap_get_arg(wrapctx, 0), drwrap_get_arg(wrapctx, 1), drwrap_get_arg(wrapctx, 2));
+}
+
+void post_reallocarray(void *wrapctx, void *buf_ptr)
 {
     if (buf_ptr == NULL)
         return;
@@ -150,8 +150,8 @@ void load_event(__attribute__((unused))void *drcontext,
     app_pc malloc = (app_pc)dr_get_proc_address(mod->handle, "__libc_malloc");
     app_pc calloc = (app_pc)dr_get_proc_address(mod->handle, "__libc_calloc");
     app_pc realloc = (app_pc)dr_get_proc_address(mod->handle, "__libc_realloc");
-    app_pc free = (app_pc)dr_get_proc_address(mod->handle, "__libc_free");
     app_pc reallocarray = (app_pc)dr_get_proc_address(mod->handle, "__libc_reallocarray");
+    app_pc free = (app_pc)dr_get_proc_address(mod->handle, "__libc_free");
 
     if (malloc)
         DR_ASSERT(drwrap_wrap(malloc, pre_malloc, post_malloc));
@@ -165,7 +165,7 @@ void load_event(__attribute__((unused))void *drcontext,
     if (free)
         DR_ASSERT(drwrap_wrap(free, pre_free, post_free));
 
-    if(reallocarray)
+    if (reallocarray)
         DR_ASSERT(drwrap_wrap(reallocarray, pre_reallocarray, post_reallocarray));
 }
 
