@@ -212,10 +212,10 @@ def realloc(state, ret, ptr, size):
     if match is None:
         return
     elif ret is None:
-        state[s] = Block(match.uaddr, match.usize, color=match.color)
+        state[s] = Block(match.uaddr, match.usize, color=match.color, meta=match.meta)
         state[s].error = True
     else:
-        state[s] = Block(ret, size, color=match.color)
+        state[s] = Block(ret, size, color=match.color, meta=match.meta)
 
 
 def meta(state, ret, *args):
