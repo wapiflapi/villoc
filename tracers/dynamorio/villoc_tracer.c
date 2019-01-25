@@ -7,6 +7,9 @@
 
 
 int tls_idx;
+file_t logfile;
+
+#define LOGPRINTF(...) dr_fprintf(logfile, __VA_ARGS__)
 
 
 void reset_buf(char *buf)
@@ -39,7 +42,7 @@ void post_malloc(void *wrapctx, void *buf_ptr)
     if (buf_ptr == NULL)
         return;
 
-    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+    LOGPRINTF("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
 
@@ -67,7 +70,7 @@ void post_calloc(void *wrapctx, void *buf_ptr)
     if (buf_ptr == NULL)
         return;
 
-    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+    LOGPRINTF("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
 
@@ -95,7 +98,7 @@ void post_realloc(void *wrapctx, void *buf_ptr)
     if (buf_ptr == NULL)
         return;
 
-    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+    LOGPRINTF("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
 
@@ -123,7 +126,7 @@ void post_reallocarray(void *wrapctx, void *buf_ptr)
     if (buf_ptr == NULL)
         return;
 
-    dr_printf("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
+    LOGPRINTF("%s) = %p\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
 
@@ -150,7 +153,7 @@ void post_free(void *wrapctx, void *buf_ptr)
     if (buf_ptr == NULL)
         return;
 
-    dr_printf("%s) = <void>\n", buf_ptr, drwrap_get_retval(wrapctx));
+    LOGPRINTF("%s) = <void>\n", buf_ptr, drwrap_get_retval(wrapctx));
     reset_buf(buf_ptr);
 }
 
@@ -180,9 +183,9 @@ void pre_sscanf(void *wrapctx, OUT void **buf_ptr)
     // Our format string is passed through sscanf's str since that
     // way it's not interpreted by the original call.
 
-    dr_printf("%s(", fmt);
-    dr_printf(str, arg1, arg2, arg3, arg4);
-    dr_printf(") = <void>\n");
+    LOGPRINTF("%s(", fmt);
+    LOGPRINTF(str, arg1, arg2, arg3, arg4);
+    LOGPRINTF(") = <void>\n");
 }
 
 
@@ -195,7 +198,10 @@ void load_event(__attribute__((unused))void *drcontext,
     app_pc realloc = (app_pc)dr_get_proc_address(mod->handle, "__libc_realloc");
     app_pc reallocarray = (app_pc)dr_get_proc_address(mod->handle, "__libc_reallocarray");
     app_pc free = (app_pc)dr_get_proc_address(mod->handle, "__libc_free");
-    app_pc sscanf = (app_pc)dr_get_proc_address(mod->handle, "sscanf");
+    app_pc sscanf = (app_pc)dr_get_proc_address(mod->handle, "__isoc99_sscanf");
+
+    if (!sscanf)
+        sscanf = (app_pc)dr_get_proc_address(mod->handle, "sscanf");
 
     if (malloc)
         DR_ASSERT(drwrap_wrap(malloc, pre_malloc, post_malloc));
@@ -232,7 +238,7 @@ void thread_exit_event(void *drc)
     char *buf = drmgr_get_tls_field(drc, tls_idx);
 
     if (buf[0] != 0)
-        dr_printf("%s <no return ...>\n", buf);
+        LOGPRINTF("%s <no return ...>\n", buf);
     dr_global_free(buf, BUF_SIZE);
 }
 
@@ -245,8 +251,7 @@ void exit_event(void)
 
 
 DR_EXPORT void dr_client_main(client_id_t __attribute__((unused))id,
-                              __attribute__((unused))int argc,
-                              __attribute__((unused))const char *argv[])
+                              int argc, const char *argv[])
 {
     drmgr_priority_t      p = {
         sizeof(p),
@@ -256,6 +261,13 @@ DR_EXPORT void dr_client_main(client_id_t __attribute__((unused))id,
         0};
 
     dr_set_client_name("Villoc_dbi", "ampotos@gmail.com");
+
+    if (argc != 2) {
+        LOGPRINTF("Usage: %s LOGFILE\n", argv[0]);
+        dr_abort();
+    }
+
+    logfile = dr_open_file(argv[1], DR_FILE_WRITE_OVERWRITE);
 
     drwrap_init();
     drmgr_init();
