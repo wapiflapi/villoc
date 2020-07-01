@@ -421,7 +421,7 @@ def print_state(out, boundaries, state):
     out.write('</div>\n')
 
 
-def gen_html(timeline, boundaries, out):
+def gen_html(timeline, boundaries, out, order):
 
     if timeline and not timeline[0]:
         timeline.pop(0)
@@ -527,7 +527,7 @@ $(window).scroll(function(){
 
     out.write('<div class="timeline">\n')
 
-    for state in reversed(timeline):
+    for state in order(timeline):
         print_state(out, boundaries, state)
 
     out.write('</div>\n')
@@ -553,6 +553,8 @@ if __name__ == '__main__':
                         help="size of a malloc chunk is at least this value")
     parser.add_argument("--raw", action="store_true",
                         help="disables header, footer, round and minsz")
+    parser.add_argument("--chronological", action="store_true",
+                    help="orders output chronologically")
 
     # Some values that work well: 38, 917, 190, 226
     parser.add_argument("-s", "--seed", type=int, default=226)
@@ -574,5 +576,8 @@ if __name__ == '__main__':
 
     noerrors = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
     timeline, boundaries = build_timeline(parse_ltrace(noerrors))
-
-    gen_html(timeline, boundaries, args.out)
+    if args.chronological:
+        order = lambda x: x
+    else:
+        order = reversed
+    gen_html(timeline, boundaries, args.out, order)
