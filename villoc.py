@@ -568,10 +568,10 @@ if __name__ == '__main__':
 
     # Set malloc options
 
-    if args.raw:
-        Block.header, Block.footer, Block.round, Block.minsz = 0, 0, 1, 0
     Block.header, Block.footer, Block.round, Block.minsz = (
         args.header, args.footer, args.round, args.minsz)
+    if args.raw:
+        Block.header, Block.footer, Block.round, Block.minsz = 0, 0, 1, 0
 
 
     noerrors = codecs.getreader('utf8')(args.ltrace.detach(), errors='ignore')
